@@ -62,3 +62,66 @@ class Ocean:
         return [[self.water[y][x].id if self.water[y][x] else 0
                     for x in range(self.width)] for y in range(self.length)]
 
+    def show_water(self):
+        fig = self.get_water()
+        plt.show()
+        plt.close(fig)
+
+    def save_img_ocean(self, filename):
+        fig = self.get_water()
+        # suppr padding around img
+        plt.savefig(filename, dpi=72, bbox_inches='tight', pad_inches='0')
+        plt.close(fig)
+
+    def look_around(self, x, y):
+        surroundings = {}
+        for dx, dy in ((0, -1), (1, 0), (0,1), (-1, 0)):
+            xp, yp = (x + dx) % self.width, (y + dy) % self.length
+            surroundings[xp, yp] = self.water[yp][xp]
+        return surroundings
+    
+    def evolution_creature(self, creature):
+        surroundings = self.look_around(creature.x, creature.y)
+        creature.fertlity +=1
+        moved = False
+        if creature.id == SHARK:
+            try:
+                # try to eat a fish around
+                xp, yp = random.choice([pos for pos in surroundings if surroundings[pos]!=EMPTY and surroundings[pos].id==FISH])
+                # eat the fish
+                creature.energy += 2
+                self.water[yp][xp].dead = True
+                self.water[yp][xp] = EMPTY
+                moved = True
+            except IndexError:
+                # no fish to eat
+                pass
+
+        if not moved:
+            # try to move
+            try:
+                xp, yp = random.choice([pos for pos in surroundings if surroundings[pos]!=EMPTY and surroundings[pos].id==FISH])
+                if creature.id !=FISH:
+                    # shark energy decreases
+                    creature.energy -= 1
+                moved = True
+            except IndexError:
+                # all cells are occupied
+                xp, yp = creature.x, creature.y
+        
+        if creature.energy < 0:
+            # creature dies
+            creature.dead=True
+            self.water[creature.y][creature.x] = EMPTY
+        elif moved:
+            # get position
+            x, y = creature.x, creature.y
+            # set new position
+            creature.x, creature.y = xp, yp
+            self.water[yp][xp] = creature
+            if creature.fertility > creature.fertility_threshold:
+                # give birth
+                self.create_creature(creature.id, x,y)
+                creature.fetility = 0
+            else:
+                self.water[y][x] = EMPTY
